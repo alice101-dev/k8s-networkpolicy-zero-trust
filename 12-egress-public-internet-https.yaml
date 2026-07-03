@@ -1,0 +1,30 @@
+# Opt-in internet egress: pods labelled egress-internet=true may call the
+# PUBLIC internet on 443 — and nothing else.
+#
+# The except list is what makes 0.0.0.0/0 safe: without it, "allow internet"
+# also allows every private/cluster IP on that port, quietly defeating your
+# pod-to-pod segmentation. Also blocks the cloud metadata endpoint — an SSRF
+# classic (credential theft via 169.254.169.254).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: egress-public-internet-https
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      egress-internet: "true" # opt-in by label
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8 # RFC1918 — pod/node/VPC ranges
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16 # link-local incl. cloud metadata (SSRF target)
+      ports:
+        - port: 443
+          protocol: TCP

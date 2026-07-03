@@ -1,0 +1,28 @@
+# Once the namespace is default-deny, every pod still needs DNS.
+# Allow it once, for all pods, to kube-dns only — not to the whole cluster.
+#
+# BOTH protocols matter: responses over 512 bytes (common with service meshes
+# and long CNAME chains) retry over TCP 53. UDP-only "allow DNS" rules cause
+# rare, maddening resolution failures.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: production
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP

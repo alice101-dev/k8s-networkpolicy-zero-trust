@@ -1,0 +1,32 @@
+# Real production case: protect the database connection pooler.
+#
+# PgBouncer fronts Cloud SQL for every service in the namespace — which makes
+# it the single most valuable lateral-movement target: any compromised pod
+# that can reach it can start speaking Postgres wire protocol at the pooler.
+#
+# This policy makes client access OPT-IN: only pods explicitly labelled
+# pgbouncer-client=true (the backend API deployment) may connect, and only on
+# the Postgres port. A metrics-exporter sidecar port, debug endpoint, or
+# anything else PgBouncer ever exposes stays unreachable.
+#
+# Companion deployment: https://github.com/alice101-dev/gke-pgbouncer-hardened
+# (its manifests ship the same label contract).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pgbouncer-ingress-from-clients
+  namespace: production
+spec:
+  podSelector:
+    matchLabels:
+      app: pgbouncer
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              pgbouncer-client: "true" # backend API pods opt in via this label
+      ports:
+        - port: 5432
+          protocol: TCP
