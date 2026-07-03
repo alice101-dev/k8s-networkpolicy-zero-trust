@@ -20,7 +20,7 @@ jobs:
           curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
           sudo mv kubeconform /usr/local/bin/
 
-      # -ignore-missing-schemas: CiliumNetworkPolicy is a CRD without a public JSON schema
+      # -ignore-missing-schemas: FQDNNetworkPolicy (networking.gke.io) is a CRD without a public JSON schema
       - name: kubeconform
         run: kubeconform -strict -summary -ignore-missing-schemas ./*.yaml
 

@@ -1,0 +1,32 @@
+# DNS-aware egress on GKE Dataplane V2: allow outbound traffic by DOMAIN NAME,
+# not IP. For SaaS APIs behind CDNs the IPs rotate constantly — an ipBlock
+# allowlist rots in days; an FQDN allowlist does not.
+#
+# Requirements:
+#   - GKE Dataplane V2 cluster (FQDNNetworkPolicy is a GKE-native CRD)
+#   - FQDN network policies enabled on the cluster:
+#       gcloud container clusters update CLUSTER --enable-fqdn-network-policy
+#   - DNS egress still allowed by a standard NetworkPolicy (01-allow-dns.yaml):
+#     the dataplane learns the allowed IPs by observing the pod's DNS answers,
+#     so lookups must resolve through cluster DNS (kube-dns / Cloud DNS).
+#
+# Egress-only by design, scoped opt-in by label, layered on the same
+# default-deny baseline as everything else in this repo.
+apiVersion: networking.gke.io/v1
+kind: FQDNNetworkPolicy
+metadata:
+  name: egress-fqdn-allowlist
+  namespace: production
+spec:
+  endpointMatcher:
+    matchLabels:
+      egress-fqdn: "true" # opt-in by label
+  egress:
+    # The allowlist — TLS only.
+    - matches:
+        - pattern: "*.googleapis.com" # GCP APIs (Secret Manager, GCS, ...)
+        - name: "accounts.google.com" # OAuth token exchange
+        - name: "api.xendit.co" # payment gateway (example third party)
+      ports:
+        - protocol: TCP
+          port: 443

@@ -4,8 +4,10 @@
 
 A production namespace that trusts **nothing by default**. Every pod starts
 fully isolated (ingress + egress); each policy then grants one narrow,
-label-scoped capability. Native on GKE Dataplane V2 — no extra CNI required —
-with one Cilium policy for domain-based egress.
+label-scoped capability. Built entirely on **GKE Dataplane V2** — standard
+`NetworkPolicy` for L3/L4 plus GKE-native **FQDN network policies**
+(`FQDNNetworkPolicy`) for domain-based egress. No extra CNI, no Calico, no
+open-source Cilium CRDs.
 
 ```mermaid
 graph LR
@@ -32,7 +34,7 @@ single deliberate exception — reviewable in isolation, applied in order:
 | 10 | `frontend-ingress-cloudflare-only.yaml` | frontend reachable exclusively via Cloudflare ranges + GCLB health checks, port 443 — direct-to-origin bypass is dropped |
 | 11 | `pgbouncer-ingress-from-clients.yaml` | Postgres pooler reachable only by pods labelled `pgbouncer-client: "true"`, port 5432 — the pooler fronts the database for everything, making it the #1 lateral-movement target ([companion deployment](https://github.com/alice101-dev/gke-pgbouncer-hardened)) |
 | 12 | `egress-public-internet-https.yaml` | opt-in HTTPS egress to **public** IPs only — RFC1918 and the cloud metadata endpoint stay blocked |
-| 20 | `cilium-egress-fqdn-allowlist.yaml` | opt-in egress by **domain name** (Cilium) for SaaS APIs whose IPs rotate daily |
+| 20 | `gke-fqdn-egress-allowlist.yaml` | opt-in egress by **domain name** (GKE `FQDNNetworkPolicy`) for SaaS APIs whose IPs rotate daily — requires `--enable-fqdn-network-policy` on the cluster |
 
 ## The label contract
 
@@ -44,7 +46,7 @@ a label — a deliberate, reviewable act in its own manifest:
 | `role: frontend` | may receive traffic from Cloudflare |
 | `pgbouncer-client: "true"` | may open connections to the DB pooler |
 | `egress-internet: "true"` | may call the public internet on 443 |
-| `egress-fqdn: "true"` | may call allowlisted domains (Cilium) |
+| `egress-fqdn: "true"` | may call allowlisted domains (GKE FQDN network policy) |
 
 A brand-new pod with none of these labels can resolve DNS — and do nothing
 else.
@@ -89,7 +91,7 @@ kubectl run probe --rm -it --image=busybox -n production \
 Every push and pull request runs through [GitHub Actions](.github/workflows/ci.yml):
 
 ```bash
-kubeconform -strict -summary -ignore-missing-schemas ./*.yaml   # schema validation (CNP is a CRD)
+kubeconform -strict -summary -ignore-missing-schemas ./*.yaml   # schema validation (FQDNNetworkPolicy is a CRD)
 checkov -d . --framework kubernetes                             # static analysis
 ```
 
@@ -97,5 +99,5 @@ checkov -d . --framework kubernetes                             # static analysi
 
 - [Kubernetes: Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
 - [GKE Dataplane V2](https://cloud.google.com/kubernetes-engine/docs/concepts/dataplane-v2)
-- [Cilium: DNS-based policies](https://docs.cilium.io/en/stable/security/policy/language/#dns-based)
+- [GKE: FQDN network policies](https://cloud.google.com/kubernetes-engine/docs/how-to/fqdn-network-policies)
 - [Cloudflare IP ranges](https://www.cloudflare.com/ips/)
