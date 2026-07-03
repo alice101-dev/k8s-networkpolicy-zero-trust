@@ -18,7 +18,8 @@ graph LR
     Y["❌ any other pod"] -.blocked.-> PB
     EG["egress-internet: true"] -->|443, public IPs only| NET["🌐 internet"]
     EG -.blocked.-> META["❌ 169.254.169.254 metadata"]
-    FQ["egress-fqdn: true"] -->|"443, *.googleapis.com"| SAAS["🌐 SaaS APIs"]
+    FQ["egress-fqdn: true"] -->|"443, *.googleapis.com"| SAAS["🌐 allowlisted SaaS APIs"]
+    FQ -.blocked.-> BAD["❌ any unlisted domain"]
 ```
 
 ## How it composes
