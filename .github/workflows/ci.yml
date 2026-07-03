@@ -39,3 +39,16 @@ jobs:
 
       - name: Run Checkov
         run: checkov -d . --framework kubernetes
+
+  gitleaks:
+    name: Secret scanning (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # full history so Gitleaks scans every commit, not just HEAD
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
