@@ -1,0 +1,16 @@
+# The zero-trust foundation: isolate EVERY pod in the namespace for both
+# directions. Nothing talks to anything until a later policy allows it.
+#
+# policyTypes is stated EXPLICITLY. If you omit it, Kubernetes infers it from
+# which rule sections exist — a policy with only egress rules still isolates
+# ingress on some inference paths, silently. Never rely on the default.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: production
+spec:
+  podSelector: {} # every pod in the namespace
+  policyTypes:
+    - Ingress
+    - Egress
